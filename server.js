@@ -18,6 +18,9 @@ const GRIST_API_KEY = process.env.GRIST_API_KEY;
 const GRIST_DOC_ID = process.env.GRIST_DOC_ID;
 
 // Endpoint to fetch employee data from Grist
+app.get('/', (req, res) => {
+    res.send("This server belongs to Glyptika.com")
+});
 app.get('/api/employees', async (req, res) => {
   try {
     const response = await axios.get(
