@@ -1,44 +1,76 @@
-
-
-const express = require('express');
-const cors = require('cors');
-const axios = require('axios');
-const dotenv = require("dotenv")
-
+const express = require("express");
+const cors = require("cors");
+const axios = require("axios");
+const dotenv = require("dotenv");
 
 dotenv.config();
 
 const app = express();
-const port = process.env.PORT || 3001;
+const PORT = process.env.PORT || 3001;
 
-app.use(cors());
+// Middleware
+app.use(
+  cors({
+    origin: process.env.FRONTEND_URL, // Restrict to your frontend domain
+    methods: ["GET", "POST", "PUT", "DELETE"],
+    credentials: true,
+  })
+);
 app.use(express.json());
 
-const GRIST_API_KEY = process.env.GRIST_API_KEY;
-const GRIST_DOC_ID = process.env.GRIST_DOC_ID;
+// Authentication middleware
+const authenticateRequest = (req, res, next) => {
+  const authHeader = req.headers.authorization;
+  
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return res.status(401).json({ error: 'Missing or invalid Bearer token' });
+  }
+
+  const token = authHeader.split(' ')[1];
+  
+  // Use the same API key as Grist
+  if (token !== process.env.GRIST_API_KEY) {
+    return res.status(401).json({ error: 'Invalid token' });
+  }
+  
+  next();
+};
+
+// Configure Grist API settings
+const gristConfig = {
+  baseURL: process.env.GRIST_API_URL,
+  headers: {
+    'Authorization': `Bearer ${process.env.GRIST_API_KEY}`
+  }
+};
+
+// const GRIST_API_KEY = process.env.GRIST_API_KEY;
+// const GRIST_DOC_ID = process.env.GRIST_DOC_ID;
 
 // Endpoint to fetch employee data from Grist
-app.get('/', (req, res) => {
-    res.send("This server belongs to Glyptika.com")
-});
-app.get('/api/employees', async (req, res) => {
+app.all('/api/*', authenticateRequest, async (req, res) => {
   try {
-    const response = await axios.get(
-      `https://docs.getgrist.com/api/docs/${GRIST_DOC_ID}/tables/Employee_Database/records`,
-      {
-        headers: {
-          Authorization: `Bearer ${GRIST_API_KEY}`,
-        },
-      }
-    );
+    const gristPath = req.path.replace('/api', '');
+    const response = await axios({
+      method: req.method,
+      url: `${gristConfig.baseURL}${gristPath}`,
+      headers: {
+        ...gristConfig.headers,
+        'Content-Type': 'application/json'
+      },
+      data: req.method !== 'GET' ? req.body : undefined,
+      params: req.query
+    });
 
-    res.json(response.data);
+    res.status(response.status).json(response.data);
   } catch (error) {
-    console.error('Error fetching data from Grist:', error);
-    res.status(500).json({ error: 'Failed to fetch employee data' });
+    console.error('Proxy Error:', error.message);
+    res.status(error.response?.status || 500).json({
+      error: error.response?.data || 'Internal Server Error'
+    });
   }
 });
 
-app.listen(port, () => {
-  console.log(`Server running on port ${port}`);
+app.listen(PORT, () => {
+  console.log(`Proxy server running on port ${PORT}`);
 });
