@@ -11,7 +11,7 @@ const PORT = process.env.PORT || 3001;
 // Middleware
 // Detailed CORS configuration
 const corsOptions = {
-  origin: ["https://glyptika-ems.vercel.app", process.env.FRONTEND_URL],
+  origin: ["https://glyptika-ems.vercel.app","http://localhost:5173", process.env.FRONTEND_URL],
   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization"],
   credentials: true,
